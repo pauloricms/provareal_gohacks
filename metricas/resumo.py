@@ -68,6 +68,21 @@ def resumir(run: Path) -> dict:
         for t in _j(c["titulo_ids"], []):
             caso_de[t] = c
     alvos = _alvos_decididos(con, eventos)
+    # correção de valor decidida pelo agente: o indevido é só o EXCESSO (a parte certa ainda é devida);
+    # correção para MAIS (lançamento abaixo da duplicata) não é pagamento ilegítimo
+    valor_correto: dict[str, float] = {}
+    for c in casos:
+        for a in _j(c["acao_escolhida"], []):
+            p = a.get("parametros") or {}
+            if a.get("ferramenta") == "corrigir_lancamento" and p.get("campo") == "valor" and p.get("titulo_id"):
+                try:
+                    valor_correto[p["titulo_id"]] = float(p["valor_novo"])
+                except (TypeError, ValueError, KeyError):
+                    pass
+
+    def indevido(t) -> float:
+        v = float(t["valor"] or 0)
+        return round(max(0.0, v - valor_correto[t["titulo_id"]]), 2) if t["titulo_id"] in valor_correto else v
 
     def custo(t):
         return custo_atraso(pol, t["valor"] or 0, cat.get(t["fornecedor_id"]))
@@ -107,7 +122,8 @@ def resumir(run: Path) -> dict:
                 "caso_id": c.get("id"), "p_problema_agente": p,
                 "custo_atraso_se_legitimo": ca,
                 "custo_esperado": ca if causa == "bug" or p is None else round((1 - float(p)) * ca, 2),
-                "dinheiro_barrado_esperado": 0.0 if causa == "bug" or p is None else round(float(p) * (ref["valor"] or 0), 2),
+                "valor_indevido": indevido(ref), "valor_correto_agente": valor_correto.get(ref["titulo_id"]),
+                "dinheiro_barrado_esperado": 0.0 if causa == "bug" or p is None else round(float(p) * indevido(ref), 2),
                 "hipotese": (c.get("hipotese") or "")[:300]})
         bug = [a for a in atrasos if a["causa"] == "bug"]
         dec = [a for a in atrasos if a["causa"] != "bug"]
@@ -133,18 +149,24 @@ def resumir(run: Path) -> dict:
 
     # ------------------------------------------------------------ lotes futuros (até o fim da execução)
     fechados = {l["lote_remessa"] for l in lotes}
-    futuros = []
+    fut_ob: dict[tuple, list] = defaultdict(list)  # POR OBRIGAÇÃO: um par duplicado segurado inteiro conta uma vez
     for t in tit.values():
         if t["lote_original"] in fechados or not t["lote_original"] or t["estado"] not in FORA:
             continue
-        c = caso_de.get(t["titulo_id"]) or {}
+        fut_ob[obrig(t)].append(t)
+    futuros = []
+    for ob, ts in fut_ob.items():
+        ref = max(ts, key=lambda t: t["valor"] or 0)
+        c = next((caso_de[t["titulo_id"]] for t in ts if t["titulo_id"] in caso_de), {})
         p = c.get("p_problema")
-        cj = _j(t["cadeia_json"], {})
-        futuros.append({"titulo_id": t["titulo_id"], "fornecedor_id": t["fornecedor_id"], "lote": t["lote_original"],
-                        "valor": t["valor"], "estado": t["estado"], "quebrados": cj.get("quebrados", []),
+        cj = _j(ref["cadeia_json"], {})
+        futuros.append({"titulo_id": ref["titulo_id"], "titulos": [t["titulo_id"] for t in ts],
+                        "fornecedor_id": ref["fornecedor_id"], "lote": ref["lote_original"],
+                        "valor": ref["valor"], "estado": ref["estado"], "quebrados": cj.get("quebrados", []),
+                        "valor_indevido": indevido(ref), "valor_correto_agente": valor_correto.get(ref["titulo_id"]),
                         "caso_id": c.get("id"), "p_problema_agente": p,
-                        "protegido_esperado": round(float(p) * (t["valor"] or 0), 2) if p is not None else None,
-                        "custo_atraso_se_legitimo": custo(t), "evidencias": _j(c.get("evidencias"), [])[:6]})
+                        "protegido_esperado": round(float(p) * indevido(ref), 2) if p is not None else None,
+                        "custo_atraso_se_legitimo": custo(ref), "evidencias": _j(c.get("evidencias"), [])[:6]})
     forn_bloq = _q(con, "SELECT fornecedor_id, motivo_bloqueio FROM fornecedores_vigente WHERE bloqueado = 1")
 
     # ------------------------------------------------------------ casos, Crítico, guarda, pessoas
@@ -217,8 +239,13 @@ def resumir(run: Path) -> dict:
         "execucao": run.name, "configuracao": {k: cfg.get(k) for k in ("modelos", "pools", "orcamento", "paralelo")},
         "ate": res_t[-1]["agora"] if res_t else None,
         "lotes_fechados": lotes,
-        "lotes_futuros": {"titulos_fora_do_lote": len(futuros),
+        "lotes_futuros": {"titulos_fora_do_lote": sum(len(f["titulos"]) for f in futuros),
+                          "obrigacoes_fora_do_lote": len(futuros),
+                          "sem_probabilidade_do_agente": sum(1 for f in futuros if f["p_problema_agente"] is None),
                           "valor_fora_do_lote": round(sum(f["valor"] or 0 for f in futuros), 2),
+                          "valor_indevido_barrado": round(sum(f["valor_indevido"] for f in futuros), 2),
+                          "correcoes_para_mais": sum(1 for f in futuros if f["valor_correto_agente"] is not None
+                                                     and f["valor_indevido"] == 0),
                           "protegido_esperado": round(sum(f["protegido_esperado"] or 0 for f in futuros), 2),
                           "custo_atraso_se_todos_legitimos": round(sum(f["custo_atraso_se_legitimo"] for f in futuros), 2),
                           "fornecedores_bloqueados": forn_bloq, "rotulo": ROTULO_EST, "itens": futuros},
@@ -276,7 +303,11 @@ def markdown(r: dict) -> str:
               f"- Ganho líquido estimado: **{brl(p['ganho_liquido_estimado'])}**.", ""]
     f = r["lotes_futuros"]
     L += ["## Lotes futuros (separado do lote que fechou)", "",
-          f"- {f['titulos_fora_do_lote']} títulos de lotes ainda abertos já estão fora do lote ({brl(f['valor_fora_do_lote'])}).",
+          f"- {f['obrigacoes_fora_do_lote']} pagamentos (obrigações; {f['titulos_fora_do_lote']} títulos) de lotes ainda "
+          f"abertos já estão fora do lote ({brl(f['valor_fora_do_lote'])}); {f['sem_probabilidade_do_agente']} sem "
+          f"probabilidade estimada pelo agente (contam zero no esperado).",
+          f"- Valor indevido barrado: {brl(f['valor_indevido_barrado'])} (em correção de valor conta só o excesso; "
+          f"{f['correcoes_para_mais']} correção(ões) para mais não contam como pagamento ilegítimo).",
           f"- Protegido esperado (p × valor): **{brl(f['protegido_esperado'])}**; custo de atraso se todos forem legítimos: "
           f"{brl(f['custo_atraso_se_todos_legitimos'])}.",
           f"- Fornecedores bloqueados: {len(f['fornecedores_bloqueados'])}.", ""]

@@ -17,7 +17,8 @@ O plano completo, as fases e as regras estão em [PLANO_AGENTE.md](PLANO_AGENTE.
 ## Como rodar
 ```
 .venv\Scripts\python.exe -m pytest -q          # testes (~90 s)
-.venv\Scripts\python.exe -m streamlit run app\streamlit_app.py   # painel (replay)
+.venv\Scripts\python.exe -m app.painel runs\<ts>                 # painel HTML/JS (replay): runs\<ts>\painel.html
+.venv\Scripts\python.exe -m streamlit run app\streamlit_app.py   # painel alternativo (Streamlit)
 .venv\Scripts\python.exe -m metricas.resumo runs\<ts>            # resumo.md + resumo.json
 .venv\Scripts\python.exe demo_manual.py        # demo do ambiente (relógio, ferramentas, lote saindo)
 .venv\Scripts\python.exe relatorio_cadeia.py   # cadeia no próximo lote a fechar (--lote, --agenda, --detalhe)

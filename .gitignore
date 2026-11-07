@@ -21,6 +21,7 @@ CONTEXT.md
 scripts/*
 !scripts/benchmark_modelos.py
 !scripts/teste_concorrencia.py
+!scripts/teste_critico.py
 !scripts/reconstruir_tiques.py
 !scripts/curadoria_pos_execucao.py
 test_proxy.py

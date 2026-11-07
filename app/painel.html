@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Contas a pagar · time de agentes</title>
+<title>Contas a pagar · sistema de agentes</title>
 <style>
 :root{
   --bg:#f6f7f9; --card:#fff; --ink:#16181d; --mute:#636a76; --line:#e3e6eb;
@@ -21,7 +21,7 @@ header h1{font-size:17px;margin:0;font-weight:650;white-space:nowrap}
 header .run{color:var(--mute);font-size:12px}
 .ctrl{display:flex;gap:8px;align-items:center;flex:1;min-width:300px}
 .ctrl input[type=range]{flex:1;accent-color:var(--accent)}
-button,select{font:inherit;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:8px;padding:6px 10px;cursor:pointer}
+button,select{white-space:nowrap;max-width:260px;font:inherit;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:8px;padding:6px 10px;cursor:pointer}
 button.prim{background:var(--accent);color:#fff;border-color:var(--accent);min-width:44px}
 button:hover{filter:brightness(.97)}
 main{max-width:1280px;margin:0 auto;padding:18px 20px 60px}
@@ -76,12 +76,20 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 .bars div{flex:1;background:var(--accent);border-radius:3px 3px 0 0;min-height:1px;position:relative}
 .bars div.cur{background:var(--warn)}
 .muted{color:var(--mute)}
+:root{--s1:#2a78d6;--s2:#eb6834;--grid:#e3e6eb}
+@media (prefers-color-scheme: dark){:root{--s1:#3987e5;--s2:#d95926;--grid:#2a2f3a}}
+.graf{display:flex;gap:20px;align-items:stretch}
+.gnum{display:flex;flex-direction:column;gap:14px;width:250px;flex:none}
+.gv{font-size:26px;font-weight:700;letter-spacing:-.5px}
+.gtip{position:absolute;top:6px;pointer-events:none;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:13px;box-shadow:0 4px 14px rgba(0,0,0,.18);white-space:nowrap}
+#gsvg text{fill:var(--mute);font-size:11.5px}
+@media (max-width:900px){.graf{flex-direction:column}.gnum{width:auto}}
 @media (max-width:900px){.kpis{grid-template-columns:1fr 1fr}.grid2,.casos,.res{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
 <header>
-  <h1>🧾 Contas a pagar · time de agentes</h1>
+  <h1>🧾 Contas a pagar · sistema de agentes</h1>
   <div class="ctrl">
     <button class="prim" id="play" title="play / pausa (espaço)">▶</button>
     <button id="ant" title="tique anterior (←)">⏮</button>
@@ -91,16 +99,32 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
     <button id="lote" title="pula até o próximo lote fechar">⏩ próximo lote</button>
     <select id="ircaso"><option value="">🎯 ir para o caso…</option></select>
   </div>
-  <span class="run" id="run"></span>
 </header>
 <main>
-  <div class="clock"><span class="h" id="hora"></span><span class="l" id="tique"></span><span class="pill" id="lotepill"></span></div>
+  <div class="clock"><span class="h" id="hora"></span><span class="l" id="tique"></span><span class="pill" id="lotepill"></span>
+    <span class="run" id="run" style="margin-left:auto"></span></div>
 
   <section class="kpis">
     <div class="kpi"><div class="t">Vai sair no próximo lote</div><div class="v" id="k1"></div><div class="s muted" id="k1s"></div></div>
     <div class="kpi"><div class="t">Provado só pelo código (sem LLM, sem pessoa)</div><div class="v" id="k2"></div><div class="s muted" id="k2s"></div></div>
-    <div class="kpi"><div class="t">Segurado pelo time (fora do lote)</div><div class="v" id="k3"></div><div class="s muted" id="k3s"></div></div>
+    <div class="kpi" style="border-color:var(--ok)"><div class="t">Pagamentos ilegítimos barrados</div><div class="v" id="k3"></div><div class="s muted" id="k3s"></div></div>
     <div class="kpi"><div class="t">Decisões levadas a pessoas</div><div class="v" id="k4"></div><div class="s muted" id="k4s"></div></div>
+  </section>
+
+  <section class="card" style="margin-bottom:16px">
+    <h2>Sem o sistema, isto seria pago <small>pagamentos ilegítimos barrados até agora × custo de atraso se todos fossem legítimos</small></h2>
+    <div class="graf">
+      <div class="gnum">
+        <div><div class="muted">Barrado (iria sair)</div><div class="gv" style="color:var(--s1)" id="g1"></div><div class="note" id="g1s"></div></div>
+        <div><div class="muted">Custo de atraso possível</div><div class="gv" style="color:var(--s2)" id="g2"></div><div class="note">se todos os barrados fossem legítimos (multa 2% + juros + relacionamento, pela política)</div></div>
+        <div><div class="muted">Margem de segurança</div><div class="gv" id="g3"></div><div class="note">dos barrados poderiam ser legítimos e o saldo ainda seria positivo</div></div>
+      </div>
+      <div style="position:relative;flex:1;min-width:0">
+        <svg id="gsvg" width="100%" height="230" role="img" aria-label="R$ barrado e custo de atraso possível, acumulados por hora"></svg>
+        <div id="gtip" class="gtip" hidden></div>
+        <div class="leg" style="margin-top:4px"><span><i style="background:var(--s1)"></i>barrado pelo sistema (acumulado)</span><span><i style="background:var(--s2)"></i>custo de atraso possível (acumulado)</span></div>
+      </div>
+    </div>
   </section>
 
   <section class="grid2">
@@ -109,12 +133,12 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
       <div class="dots" id="dots"></div>
       <div class="leg">
         <span><i class="P"></i>provado</span><span><i class="D"></i>duvidoso</span><span><i class="Q"></i>elo quebrado</span>
-        <span><i class="R"></i>segurado pelo time</span><span><i class="C"></i>cancelado</span><span><i class="S"></i>pago</span>
+        <span><i class="R"></i>segurado pelo sistema</span><span><i class="C"></i>cancelado</span><span><i class="S"></i>pago</span>
       </div>
       <div id="tip">Passe o mouse num quadrado para ver o título.</div>
     </div>
     <div class="card">
-      <h2>O que o time está fazendo <small id="feedsub"></small></h2>
+      <h2>O que o sistema está fazendo <small id="feedsub"></small></h2>
       <ul class="feed" id="feed"></ul>
     </div>
   </section>
@@ -141,7 +165,7 @@ const brl0 = v => "R$ " + Number(v || 0).toLocaleString("pt-BR", {maximumFractio
 const DIAS = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];
 const hora = s => { const d = new Date(s.replace(" ", "T")); return `${DIAS[d.getDay()]} ${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")} ${String(d.getHours()).padStart(2,"0")}:00`; };
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-const NOME = {P:"provado", D:"duvidoso", Q:"elo quebrado", R:"segurado pelo time", C:"cancelado", S:"pago", "-":"fora deste tique"};
+const NOME = {P:"provado", D:"duvidoso", Q:"elo quebrado", R:"segurado pelo sistema", C:"cancelado", S:"pago", "-":"fora deste tique"};
 
 let i = 0, timer = null, casoSel = null;
 const T = D.tiques;
@@ -153,23 +177,59 @@ function resultado(){
   const R = D.resumo, el = $("resultado");
   if (!R){ el.innerHTML = `<h2>Resultado</h2><p class="muted">O placar aparece quando a execução termina (resumo.json).</p>`; return; }
   const L = (R.lotes_fechados || [])[0];
-  let h = `<h2>Resultado ${L ? "do lote " + esc(L.lote_remessa) : ""} <small>estimado pelo agente, verificável pela trilha</small></h2>`;
+  let h = `<h2>🏁 Resultado final ${L ? "do lote " + esc(L.lote_remessa) : ""} <small>ao fim da execução · estimado pelo agente, verificável pela trilha</small></h2>`;
   if (L){
     const p = L.placar, bug = p.com_agente.custo_atraso_bug, dec = p.com_agente.custo_atraso_decisao_esperado;
     h += `<div class="res">
-      <div class="box bad"><div class="muted">Sem o time (o lote sai como está)</div><div class="v">${brl(p.sem_agente.total)}</div>
+      <div class="box bad"><div class="muted">Sem o sistema (o lote sai como está)</div><div class="v">${brl(p.sem_agente.total)}</div>
         <div class="note">${brl(p.sem_agente.pago_em_dobro)} pagos em dobro + ${brl(p.sem_agente.pago_indevido_esperado)} de pagamento indevido esperado</div></div>
-      <div class="box"><div class="muted">Custo do time (atrasos)</div><div class="v">${brl(bug + dec)}</div>
+      <div class="box"><div class="muted">Custo do sistema (atrasos)</div><div class="v">${brl(bug + dec)}</div>
         <div class="note">${brl(dec)} por decisão (esperado) ${bug ? `+ <b>${brl(bug)} por um bug do código, já corrigido</b>` : "· nenhum atraso por bug"}</div></div>
       <div class="box good"><div class="muted">Ganho líquido</div><div class="v">${brl(p.ganho_liquido_estimado)}</div>
         <div class="note">${L.saiu.qtd} títulos saíram (${brl0(L.saiu.valor)}); ${L.retidos.qtd} ficaram de fora</div></div></div>`;
   }
   const F = R.lotes_futuros;
-  h += `<p style="margin:12px 0 0">Além disso, para os <b>próximos lotes</b>, o time já segurou ${F.titulos_fora_do_lote} títulos
-        (${brl0(F.valor_fora_do_lote)}): <b>${brl0(F.protegido_esperado)} protegidos</b> pela probabilidade estimada pelo agente.
+  h += `<p style="margin:12px 0 0">Além disso, para os <b>próximos lotes</b>, o sistema já barrou ${brl0(F.valor_indevido_barrado ?? F.valor_fora_do_lote)} em pagamentos indevidos:
+        <b>${brl0(F.protegido_esperado)} protegidos</b> pela probabilidade estimada pelo agente.
         · ${R.pessoas.pct_titulos_dos_lotes_fechados_sem_pessoa}% dos títulos sem envolver pessoa
         · ${R.casos.total} casos investigados, ${R.critico.refutacoes} refutação(ões) do Crítico.</p>`;
+  const E = D.evitados || [];
+  if (E.length){
+    const grupos = [["pagamento em dobro", "Pagamentos em dobro evitados (a mesma obrigação já saiu pela outra via)"],
+                    ["suspeito", `Pagamentos suspeitos segurados no lote ${L ? esc(L.lote_remessa) : ""}`],
+                    ["lote futuro", "Pagamentos suspeitos já segurados para os próximos lotes"]];
+    const V = E.reduce((a, e) => a + e.valor, 0), A = E.reduce((a, e) => a + (e.atraso || 0), 0);
+    const P = (R.pessoas.decisoes_levadas || 0) * 60, eq = (V - P) / (V + A);
+    const saldo = x => (1 - x) * V - x * A - P;
+    h += `<h2 style="margin-top:18px">Margem de segurança <small>e se o sistema tiver barrado pagamentos que eram legítimos?</small></h2>
+      <p style="margin:0 0 8px">O saldo continua <b>positivo mesmo se até ${(eq * 100).toFixed(1).replace(".", ",")}% dos pagamentos barrados fossem legítimos</b>.
+      Saldo = (pagamentos ilegítimos evitados) − (custo de atraso dos legítimos) − (R$ 60 por decisão levada a pessoas).</p>
+      <table style="max-width:640px"><tr><th>Se esta parte dos barrados fosse legítima</th><th class="num">Ilegítimo evitado</th><th class="num">Custo (atraso + R$ 60 por decisão)</th><th class="num">Saldo</th></tr>` +
+      [0, 0.5, 0.8, eq, 0.9].map(x => `<tr${Math.abs(x - eq) < 1e-9 ? ' style="font-weight:600"' : ""}><td>${(x * 100).toFixed(x === eq ? 1 : 0).replace(".", ",")}%${Math.abs(x - eq) < 1e-9 ? " (equilíbrio)" : ""}</td>
+        <td class="num">${brl((1 - x) * V)}</td><td class="num">${brl(x * A + P)}</td>
+        <td class="num" style="color:${saldo(x) >= -0.005 ? "var(--ok)" : "var(--bad)"}">${brl(saldo(x))}</td></tr>`).join("") + `</table>
+      <p class="note">Hipótese simples: a mesma fração vale para todos os pagamentos barrados, inclusive as cópias de obrigação já paga (conservador:
+      essas cópias não podem ser legítimas). Sem gabarito, é uma análise de sensibilidade, não uma medição.</p>`;
+    h += `<h2 style="margin-top:18px">Cada pagamento ilegítimo barrado <small>${E.length} pagamentos ·
+          ${brl(V)} em valor · ${brl(E.reduce((a, e) => a + e.esperado, 0))} pela probabilidade estimada pelo agente ·
+          ${brl(A)} de atraso se todos fossem legítimos</small></h2>`;
+    for (const [tipo, titulo] of grupos){
+      const g = E.filter(e => e.tipo === tipo).sort((a, b) => b.valor - a.valor);
+      if (!g.length) continue;
+      h += `<h3 style="font-size:14px;margin:14px 0 6px">${titulo} <span class="muted">(${g.length} · ${brl(g.reduce((a, e) => a + e.valor, 0))})</span></h3>
+        <table><tr><th>Título</th><th>Fornecedor</th><th class="num">Valor indevido</th><th class="num">Atraso se legítimo</th><th class="num">Certeza do agente</th><th class="num">Esperado</th><th>Por quê</th><th>Barrado em</th></tr>` +
+        g.map(e => `<tr><td>${esc(e.titulo)}</td><td>${esc(e.forn)}</td><td class="num">${brl(e.valor)}</td>
+          <td class="num" style="color:var(--s2)">${e.atraso ? brl(e.atraso) : "R$ 0 <span class=muted>(já pago)</span>"}</td>
+          <td class="num">${e.p != null ? Math.round(e.p * 100) + "%" : "-"}</td><td class="num">${brl(e.esperado)}</td>
+          <td>${esc(e.motivo)} ${e.caso ? `<a data-c="${e.caso}" style="color:var(--accent);cursor:pointer">${e.caso}</a>` : ""}</td>
+          <td>${e.n != null ? hora(T.find(x => x.n >= e.n)?.hora || T[T.length-1].hora) : "-"}</td></tr>`).join("") + `</table>`;
+    }
+    h += `<p class="note">Contado por obrigação (fornecedor + NF + parcela). "Certeza do agente" é a probabilidade de problema que o
+          investigador estimou e o Crítico conferiu; não há gabarito. Em erro de valor conta só o excesso (a parte certa ainda é devida);
+          correção para mais não entra. Títulos retidos por bug do código não entram: eram legítimos e contam como custo.</p>`;
+  }
   el.innerHTML = h;
+  el.onclick = ev => { const c = ev.target.dataset.c; if (c){ abrirCaso(c); $("t-casos").scrollIntoView({behavior:"smooth"}); } };
 }
 
 // ------------------------------------------------------------ tique atual
@@ -183,8 +243,9 @@ function render(){
   $("k1s").textContent = `${t.no_lote} títulos no lote ${t.lote}`;
   $("k2").textContent = (t.provado ?? 0) + "%";
   $("k2s").textContent = "dos títulos do lote";
-  $("k3").textContent = brl0(t.valor_fora);
-  $("k3s").textContent = `${t.fora} título(s) · ${t.casos} casos investigados até agora`;
+  const ev3 = (D.evitados || []).filter(e => e.n != null && e.n <= t.n);
+  $("k3").textContent = `${ev3.length} · ${brl0(ev3.reduce((a, e) => a + e.valor, 0))}`;
+  $("k3s").textContent = `${brl0(ev3.reduce((a, e) => a + e.esperado, 0))} pela probabilidade do agente · lista no Resultado`;
   $("k4").textContent = t.decisoes_pessoas;
   $("k4s").textContent = `${t.cards} card(s) · cada acionamento desnecessário custa R$ 60`;
   // grade
@@ -192,6 +253,11 @@ function render(){
   $("lotetit").textContent = `· ${ids.length} títulos, do maior para o menor valor`;
   const big = ids.length < 80;
   $("dots").innerHTML = ids.map((ti, k) => `<span class="dot ${big ? "big " : ""}${t.cods[k] === "-" ? "x" : t.cods[k]}" data-k="${k}"></span>`).join("");
+  const cont = {}; for (const c of t.cods) cont[c] = (cont[c] || 0) + 1;
+  $("tip").innerHTML = ["P", "D", "Q", "R", "C", "S"].filter(c => cont[c]).map(c => `<b>${cont[c]}</b> ${NOME[c]}`).join(" · ")
+    + `<br><span class="muted">Passe o mouse num quadrado para ver o título.</span>`;
+  if (!casoSel) $("caso").innerHTML = `<p class="muted">Escolha um caso à esquerda para ver a história: o que o código achou,
+    o que o investigador concluiu, se o Crítico concordou e o que o sistema fez.</p>`;
   // feed: tique atual em destaque + anteriores apagados
   const ev = D.feed.filter(e => e.n <= t.n).slice(-60).reverse();
   const agora = ev.filter(e => e.n === t.n).length;
@@ -200,6 +266,7 @@ function render(){
      <span>${esc(e.txt)} ${e.caso ? `<a data-c="${e.caso}">ver caso</a>` : ""}<br><span class="w">${hora(T.find(x => x.n === e.n)?.hora || t.hora)}</span></span></li>`).join("")
      || `<li class="muted">Tudo provado pelo código até aqui. Nenhum LLM chamado.</li>`;
   listaCasos();
+  grafico();
 }
 $("dots").addEventListener("mouseover", ev => {
   const k = ev.target.dataset.k; if (k === undefined) return;
@@ -207,6 +274,49 @@ $("dots").addEventListener("mouseover", ev => {
   $("tip").innerHTML = `<b>${esc(id)}</b> · ${esc(forn)} · ${brl(v)} · <b>${NOME[c]}</b>${q ? " · elo(s) quebrado(s): " + esc(q) : ""}`;
 });
 $("feed").addEventListener("click", ev => { const c = ev.target.dataset.c; if (c){ abrirCaso(c); $("t-casos").scrollIntoView({behavior:"smooth"}); }});
+
+// ------------------------------------------------------------ gráfico: barrado × custo de atraso possível
+const EV = D.evitados || [];
+const SA = T.map(t => EV.filter(e => e.n != null && e.n <= t.n).reduce((a, e) => a + e.valor, 0));
+const SB = T.map(t => EV.filter(e => e.n != null && e.n <= t.n).reduce((a, e) => a + (e.atraso || 0), 0));
+const kfmt = v => v >= 1e6 ? "R$ " + (v / 1e6).toLocaleString("pt-BR", {maximumFractionDigits: 1}) + " mi"
+                : v >= 1e3 ? "R$ " + Math.round(v / 1e3) + " mil" : "R$ " + Math.round(v);
+function grafico(){
+  const svg = $("gsvg"), W = svg.clientWidth || 800, H = 230, L = 64, R = 92, TOP = 12, B = 26;
+  const ymax = Math.max(...SA, ...SB, 1) * 1.08, xw = (W - L - R) / Math.max(T.length - 1, 1);
+  const x = k => L + k * xw, y = v => TOP + (H - TOP - B) * (1 - v / ymax);
+  let s = "";
+  for (let g = 0; g <= 3; g++){ const v = ymax * g / 3;
+    s += `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--grid)" stroke-width="1"/>
+          <text x="${L - 8}" y="${y(v) + 4}" text-anchor="end">${kfmt(v)}</text>`; }
+  const marcas = T.map((t, k) => [k, t]).filter(([k, t]) => t.hora.slice(11, 13) === "00" || k === 0);
+  marcas.forEach(([k, t]) => s += `<text x="${x(k)}" y="${H - 6}" text-anchor="middle">${hora(t.hora).slice(0, 9)}</text>`);
+  const linha = (S, cor) => `<path d="${S.slice(0, i + 1).map((v, k) => (k ? "L" : "M") + x(k).toFixed(1) + " " + y(v).toFixed(1)).join(" ")}"
+      fill="none" stroke="${cor}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+  s += `<path d="${SA.slice(0, i + 1).map((v, k) => (k ? "L" : "M") + x(k) + " " + y(v)).join(" ")} L ${x(i)} ${y(0)} L ${x(0)} ${y(0)} Z" fill="var(--s1)" opacity=".10"/>`;
+  s += linha(SB, "var(--s2)") + linha(SA, "var(--s1)");
+  s += `<line x1="${x(i)}" x2="${x(i)}" y1="${TOP}" y2="${H - B}" stroke="var(--mute)" stroke-dasharray="3 3" opacity=".6"/>`;
+  [[SA, "var(--s1)", "barrado"], [SB, "var(--s2)", "atraso possível"]].forEach(([S, cor, nome], j) => {
+    s += `<circle cx="${x(i)}" cy="${y(S[i])}" r="4.5" fill="${cor}" stroke="var(--card)" stroke-width="2"/>`;
+    const ly = y(S[i]) + (j === 0 ? -8 : 14);
+    s += `<text x="${x(i) + 8}" y="${Math.max(TOP + 10, Math.min(H - B - 2, ly))}" style="fill:var(--ink);font-weight:600">${kfmt(S[i])}</text>`; });
+  s += `<rect id="ghit" x="${L}" y="${TOP}" width="${W - L - R}" height="${H - TOP - B}" fill="transparent"/>`;
+  svg.innerHTML = s;
+  const n = EV.filter(e => e.n != null && e.n <= T[i].n).length;
+  $("g1").textContent = brl0(SA[i]);
+  $("g1s").textContent = `${n} pagamento(s) · ${brl0(EV.filter(e => e.n != null && e.n <= T[i].n).reduce((a, e) => a + e.esperado, 0))} pela probabilidade do agente`;
+  $("g2").textContent = brl0(SB[i]);
+  const Pi = (T[i].decisoes_pessoas || 0) * 60, eqi = SA[i] > Pi ? (SA[i] - Pi) / (SA[i] + SB[i]) : null;
+  $("g3").textContent = eqi == null ? "-" : "até " + (eqi * 100).toFixed(1).replace(".", ",") + "%";
+  $("ghit").onmousemove = ev => {
+    const r = svg.getBoundingClientRect(), k = Math.max(0, Math.min(i, Math.round((ev.clientX - r.left - L) / xw)));
+    const tip = $("gtip"); tip.hidden = false;
+    tip.innerHTML = `<b>${hora(T[k].hora)}</b><br><span style="color:var(--s1)">■</span> barrado ${brl(SA[k])}<br>
+                     <span style="color:var(--s2)">■</span> atraso possível ${brl(SB[k])}`;
+    tip.style.left = Math.min(x(k) + 12, W - tip.offsetWidth - 4) + "px"; };
+  $("ghit").onmouseleave = () => $("gtip").hidden = true;
+}
+window.addEventListener("resize", () => grafico());
 
 // ------------------------------------------------------------ casos
 function listaCasos(){
@@ -233,7 +343,7 @@ function abrirCaso(id, silencioso){
 // ------------------------------------------------------------ aprendizado e tempo
 function aprendizado(){
   const C = D.curadoria, ds = D.detectores;
-  let h = `<h2>O time aprende <small>detectores criados pelos agentes a partir dos casos</small></h2>`;
+  let h = `<h2>O sistema aprende <small>detectores criados pelos agentes a partir dos casos</small></h2>`;
   if (C) h += `<p><b>${C.detectores_antes} detectores criados → ${C.ativos_depois} ativos</b> depois do Curador
      (${C.consolidados.length} consolidados por serem o mesmo padrão, ${C.rebaixados.length} rebaixado(s) por muito alarme falso).
      ${C.licoes} lições e ${C.propostas} propostas de correção de processo.</p>`;
@@ -278,7 +388,9 @@ document.querySelectorAll("nav.tabs button").forEach(b => b.onclick = () => {
   if (b.dataset.t === "apr") aprendizado(); if (b.dataset.t === "tempo") tempo(); });
 document.addEventListener("keydown", e => { if (e.target.tagName === "SELECT") return;
   if (e.key === " "){ e.preventDefault(); tocar(); } if (e.key === "ArrowRight") ir(i + 1); if (e.key === "ArrowLeft") ir(i - 1); });
-resultado(); render();
+resultado();
+{ const m = location.hash.match(/t=(\d+)/); i = m ? Math.min(T.length - 1, +m[1]) : 0; }  // painel.html#t=20 abre na hora 20
+render();
 </script>
 </body>
 </html>

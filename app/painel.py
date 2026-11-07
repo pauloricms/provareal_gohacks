@@ -148,8 +148,11 @@ def gerar(run: Path) -> Path:
         elif t == "nao_responde":
             add(e, "🚫", "Não respondeu a uma mensagem: o remetente não é o contato do cadastro.", None, 2)
         elif t == "lote_fechado":
-            add(e, "🏦", f"Lote {e.get('lote_remessa')} fechou: {e.get('qtd_enviados')} títulos saíram "
-                         f"({brl(e.get('valor_enviado'))}); {len(e.get('retidos') or [])} ficaram de fora.")
+            L = e.get("lote_remessa")
+            fora = con.execute("SELECT count(*), coalesce(sum(valor), 0) FROM titulos WHERE lote_original = ? AND "
+                               "titulo_id NOT IN (SELECT titulo_id FROM lote_saida WHERE lote_remessa = ?)", [L, L]).fetchone()
+            add(e, "🏦", f"Lote {L} fechou: {e.get('qtd_enviados')} títulos saíram ({brl(e.get('valor_enviado'))}); "
+                         f"{fora[0]} ficaram de fora pelo sistema ({brl(fora[1])}).")
         elif t in ("detector_consolidado", "detector_rebaixado"):
             add(e, "🧹", f"Curador: {e.get('motivo')}", None, 2)
         elif t == "execucao_retomada":
@@ -177,13 +180,67 @@ def gerar(run: Path) -> Path:
         for l in resumo.get("lotes_fechados", []):
             for a in l.get("obrigacoes_atrasadas", []):
                 a["forn"] = nome_forn.get(a["obrigacao"]["fornecedor_id"], a["obrigacao"]["fornecedor_id"])
-        resumo["lotes_futuros"]["itens"] = resumo["lotes_futuros"]["itens"][:40]
         resumo["casos"].pop("lista", None)
+    # ---------------------------------------------------------- cada pagamento ilegítimo evitado, um a um
+    quando: dict[str, int] = {}
+    for e in eventos:
+        if e["tipo"] == "ferramenta" and e.get("tipo_ferramenta") == "execucao" and e.get("ator") in (
+                "executor", "watchdog") and (e.get("args") or {}).get("titulo_id"):
+            quando.setdefault(e["args"]["titulo_id"], numero_tique(e["tique"]))
+    caso_de = {}
+    for cid, d in casos_db.items():
+        for tid in json.loads(d["titulo_ids"] or "[]"):
+            caso_de[tid] = d
+    forn_de = {r["titulo_id"]: r["fornecedor_id"] for r in con.execute("SELECT titulo_id, fornecedor_id FROM titulos")}
+
+    def item(tid, tipo, p, lote, motivo_extra=""):
+        c = caso_de.get(tid) or {}
+        v = valor.get(tid) or 0
+        return {"titulo": tid, "forn": nome_forn.get(forn_de.get(tid), forn_de.get(tid)), "valor": v, "lote": lote,
+                "tipo": tipo, "p": p, "esperado": round(p * v, 2) if p is not None else 0.0, "caso": c.get("id"),
+                "atraso": 0.0,  # cópia de obrigação já paga: segurar não atrasa nada
+                "motivo": (c.get("hipotese") or motivo_extra or "")[:400], "n": quando.get(tid, c and next(
+                    (pp["n"] for pp in passos.get(c.get("id"), [])), None))}
+    evitados = []
+    if resumo:
+        for l in resumo.get("lotes_fechados", []):
+            for cp in l.get("copias_retidas", []):
+                evitados.append(item(cp["titulo_id"], "pagamento em dobro", 1.0, l["lote_remessa"],
+                                     "a mesma obrigação (fornecedor + NF + parcela) foi paga pela outra via"))
+            for a in l.get("obrigacoes_atrasadas", []):
+                if a["causa"] == "bug":
+                    continue  # retido por erro do código: era legítimo, entra como custo, não como evitado
+                alvos = [t["titulo_id"] for t in a["titulos"] if t["alvo_de_acao"]]
+                if alvos and a.get("valor_indevido", a["valor"]) > 0:  # uma obrigação = um pagamento possível
+                    it = item(alvos[0], "suspeito", a["p_problema_agente"], l["lote_remessa"])
+                    it["titulo"] = ", ".join(t["titulo_id"] for t in a["titulos"])
+                    it["valor"], it["esperado"] = a.get("valor_indevido", a["valor"]), a["dinheiro_barrado_esperado"]
+                    it["atraso"] = a["custo_atraso_se_legitimo"]
+                    if a.get("valor_correto_agente") is not None:
+                        it["motivo"] = (f"Lançado {brl(a['valor'])}, correto {brl(a['valor_correto_agente'])}: "
+                                        f"conta só o excesso. " + it["motivo"])[:400]
+                    it["n"] = min((quando[t] for t in alvos if t in quando), default=it["n"])
+                    evitados.append(it)
+        for f in resumo["lotes_futuros"]["itens"]:
+            if f.get("valor_indevido", f["valor"]) <= 0:
+                continue  # correção para mais: paga-se MAIS, não é pagamento ilegítimo
+            it = item(f["titulo_id"], "lote futuro", f["p_problema_agente"], f["lote"],
+                      "elo(s) quebrado(s): " + ", ".join(f.get("quebrados") or []))
+            it["titulo"], it["valor"] = ", ".join(f.get("titulos") or [f["titulo_id"]]), f.get("valor_indevido", f["valor"])
+            if f.get("valor_correto_agente") is not None:
+                it["motivo"] = (f"Lançado {brl(f['valor'])}, correto {brl(f['valor_correto_agente'])}: "
+                                f"conta só o excesso. " + it["motivo"])[:400]
+            it["esperado"] = f["protegido_esperado"] or 0.0
+            it["atraso"] = f["custo_atraso_se_legitimo"]
+            it["n"] = min((quando[t] for t in f.get("titulos", []) if t in quando), default=it["n"])
+            evitados.append(it)
+        resumo["lotes_futuros"]["itens"] = []
+
     ultima = tiques[-1] if tiques else {}
     detectores = ultima and json.loads((run / "tiques" / f"{ultima['n']:03d}.json").read_text(encoding="utf-8")).get(
         "detectores", [])
     dados = {"run": run.name, "reconstruida": (run / "reconstrucao.json").exists(), "titulos": titulos,
-             "lotes": lotes, "tiques": tiques, "feed": feed, "casos": casos, "resumo": resumo,
+             "lotes": lotes, "tiques": tiques, "feed": feed, "casos": casos, "resumo": resumo, "evitados": evitados,
              "curadoria": curadoria and {k: v for k, v in curadoria.items() if k != "detectores"},
              "detectores": detectores or [], "gerado_em": __import__("time").strftime("%d/%m %H:%M")}
     html = (RAIZ / "app" / "painel.html").read_text(encoding="utf-8")

@@ -58,6 +58,8 @@ cadeia apontava, nunca por comparação com uma lista de respostas.
 | A8 | **Bug do Executor (código, não do LLM):** enquanto uma ação forte esperava aprovação, ele tirava do lote **todos** os títulos da proposta. Num par duplicado de R$ 9.006,36, o agente decidiu "cancelar a cópia e pagar o legítimo"; o cancelamento exigia aprovação e o legítimo foi retirado junto. Atraso indevido de um título de produto: **R$ 3.201,14** pela política (2% + juros de 7 dias + R$ 3.000 de relacionamento). | Pergunta do Paulo ("dos 9 retidos, quantos eram o legítimo de um par?"), conferida título a título na trilha. | Executor segura só o **alvo** da ação (`_alvos`); teste com par duplicado garante que o legítimo continua no lote. |
 | A9 | Noutro par duplicado (R$ 4.750), o agente segurou as duas vias de propósito: um e-mail relatava pagamento em dobro de uma parcela anterior, e o Crítico confirmou no ERP. Decisão de julgamento, não bug: se o título era devido, o atraso custa **R$ 906,08**. | Mesma conferência. | Entra no placar como custo de atraso (sem gabarito: pela regra da política, rotulado como decisão do agente). |
 
+| A10 | **Cota do Kimi esgotada** na execução final (a partir do tique das 13h, ~14:58 real): o Crítico `k3.1-pro` recebia `429 - Cota do Kimi esgotada; volta às 16:39`. Sem Crítico, nenhuma proposta passava e os casos voltavam para a triagem a cada tique (4 tiques com 0 decididos). | Pergunta do Paulo sobre lentidão → leitura do log (`decididos=0` em sequência) → eventos `llm_falha`. | Execução parada às 15:02; `scripts/teste_critico.py` (pedido de tamanho real, caso inventado): `mimo-v2.6-pro` 18,6 s e percebeu a armadilha do teste, `glm-5.3` 24 s. Crítico trocado para `mimo-v2.6-pro` (outra família que a dos investigadores GPT), retomada na mesma pasta (`execucao_retomada`). Melhoria pendente: o orquestrador devia reconhecer 429 de cota e trocar o modelo sozinho em vez de repetir a falha. |
+
 Observação de operação (execução de 13:14): com os prompts reais (contexto de vários mil tokens), o `gpt-6-luna` levou ~6 s sozinho e ~26 s com 4 em paralelo; o `k3.1-pro` leva de 15 a 50 s. O gargalo do tique é o Crítico. **O teste de concorrência de 14:30 (abaixo) mostrou que, com pedido curto, NÃO há fila**: a lentidão em paralelo vem do tamanho do pedido, não de uma fila por modelo.
 
 ### Teste de concorrência do proxy (seção 9e, 07/11 14:30, `scripts/teste_concorrencia.py`)
@@ -90,14 +92,33 @@ outra família. Um modelo por laço de ferramentas inteiro (o reenvio e as volta
   a métrica `citacoes_barradas` sai 0 por não existir o verificador, não por não haver citação errada.
 - Curador ativo às 18h.
 
+## Margem de segurança: e se o sistema barrou pagamentos legítimos? (07/11 15:35)
+
+Sem gabarito, não dá para medir quantos dos pagamentos barrados eram de fato ilegítimos. A métrica abaixo é uma
+**análise de sensibilidade**: supõe que uma fração X dos barrados era legítima (a mesma fração para todos) e calcula
+`saldo(X) = (1 − X) × valor indevido barrado − X × custo de atraso se legítimos − R$ 60 × decisões levadas a pessoas`.
+O custo de atraso de cada pagamento vem da política (multa 2% + juros de 1% a.m. por 7 dias + relacionamento da
+categoria). Conservador: as cópias de obrigação já paga entram na fração X, embora não possam ser legítimas.
+
+| Execução | Pagamentos barrados | Valor indevido | Atraso se todos legítimos | Decisões a pessoas | **Equilíbrio** | Saldo com 50% / 80% / 90% legítimos |
+|---|---|---|---|---|---|---|
+| Final (`20261107_143739`) | 31 | R$ 271.790,01 | R$ 33.819,40 | 9 (R$ 540) | **88,8%** | R$ 118.445 / R$ 26.762 / −R$ 3.798 |
+| 13:14 (`20261107_131438`) | 23 | R$ 273.280,50 | R$ 34.088,03 | 4 (R$ 240) | **88,8%** | R$ 119.356 / R$ 27.146 / −R$ 3.591 |
+
+Leitura: o saldo continua positivo **mesmo se até 88,8% dos pagamentos barrados fossem legítimos**; com 90% fica
+negativo (≈ −R$ 3,7 mil). A razão é a assimetria da política: deixar sair um pagamento ilegítimo perde o valor inteiro;
+segurar um legítimo custa ~2% + juros + relacionamento. No painel (`app/painel.html`): bloco "Margem de segurança"
+no gráfico da tela inicial (por hora do replay) e tabela no Resultado; cada pagamento barrado mostra também o seu
+"atraso se legítimo".
+
 ## Modelos por papel (F3) e por quê
 Medido no proxy em 07/11 (`scripts/probe_llm.py`, ferramenta forçada com `tool_choice="required"`):
 
 | Papel | Modelo | Por quê |
 |---|---|---|
-| Chefe, Investigador (decisão) | `gpt-6-sol` | padrão da organização, objetivo; ~3 s com ferramenta forçada, ~8 s em texto livre |
-| Leitor de E9, agentes de Compras e Tesouraria (leve) | `gpt-6-luna` | ~2,7 s com ferramenta forçada; tarefa curta e frequente (uma chamada por fornecedor, com cache) |
-| Crítico | `k3.1-pro` | **outra família** (erra diferente do GPT); aceita só `temperature=1` e pensa antes de responder (~8 s, precisa de limite de saída maior) |
+| Chefe, Investigador (decisão) | pool `gpt-6-sol`, `gpt-6-astra`, `gpt-5.6-sol` | padrão da organização, objetivo; ~3 s com ferramenta forçada, ~8 s em texto livre; revezamento entre os três (seção 9e) |
+| Leitor de E9, agentes de Compras e Tesouraria, Relacionamento (leve) | pool `gpt-6-luna`, `gpt-5.6-luna` | ~5 s com pedido real; tarefa curta e frequente. `glm-5.3-flash` e `mimo-v2.6-flash` saíram do pool (28 a 40 s com pedido real, erro 22) |
+| Crítico | `mimo-v2.6-pro` (era `k3.1-pro`) | **outra família** que a dos investigadores GPT. O `k3.1-pro` foi o Crítico até a cota do Kimi acabar na execução final (A10); o `mimo-v2.6-pro` foi testado com pedido de tamanho real (18,6 s) |
 
 Os modelos ficam centralizados em `agente/llm.py` e podem ser trocados por variável de ambiente (`MODELO_DECISAO`, `MODELO_LEVE`, `MODELO_CRITICO`).
 

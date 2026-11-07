@@ -25,7 +25,9 @@ load_dotenv()
 MODELOS = {
     "decisao": os.getenv("MODELO_DECISAO", "gpt-6-sol"),   # Chefe, Investigador
     "leve": os.getenv("MODELO_LEVE", "gpt-6-luna"),        # leitura de comunicações (E9), Compras/Tesouraria
-    "critico": os.getenv("MODELO_CRITICO", "k3.1-pro"),    # outra família: erra diferente do GPT
+    # outra família: erra diferente do GPT. Era k3.1-pro; a cota do Kimi esgotou em 07/11 (~14:55, volta 16:39) e o
+    # Crítico passou a mimo-v2.6-pro (Xiaomi), testado com pedido de tamanho real (scripts/teste_critico.py, 18,6 s).
+    "critico": os.getenv("MODELO_CRITICO", "mimo-v2.6-pro"),
 }
 # Pool por papel (seção 9e): revezamento entre modelos da mesma família de capacidade, para espalhar a carga se o
 # proxy limitar por modelo. Todos passaram no teste de ferramenta forçada (scripts/teste_concorrencia.py, 07/11 14:30).
