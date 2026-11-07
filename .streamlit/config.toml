@@ -1,0 +1,7 @@
+# O painel lê runs/ (dados confidenciais do evento): só na máquina local, nunca na rede.
+[server]
+address = "127.0.0.1"
+headless = true
+
+[browser]
+gatherUsageStats = false

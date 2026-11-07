@@ -1,0 +1,20 @@
+[project]
+name = "agente-contas-a-pagar"
+version = "0.1.0"
+description = "Agente autônomo de contas a pagar que exige prova antes de deixar o dinheiro sair (GoHacks Talent 2026, d2)"
+requires-python = ">=3.12"
+dependencies = [
+    "openai",
+    "duckdb",
+    "pandas",
+    "pyarrow",
+    "python-dotenv",
+    "streamlit",
+    "python-telegram-bot",
+    "pydantic",
+    "pytest",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]

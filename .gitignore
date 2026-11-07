@@ -1,0 +1,34 @@
+# Sobe (seção 10 do plano): código (env/, agente/, canais/, app/, metricas/), tests/, README.md, CLAUDE.md,
+# NOTAS_IA.md, relatorio_cadeia.py, pyproject.toml e scripts/benchmark_modelos.py (caso inventado).
+
+# segredos: NUNCA versionar
+.env
+.env.*
+
+# dados do evento são CONFIDENCIAIS (termo assinado) e tudo que contém valores deles
+data/
+_local/
+docs/
+runs/*
+!runs/SCHEMA.md
+.cache/
+
+# plano interno e contexto de sessão (citam exemplos e valores dos dados)
+PLANO_AGENTE.md
+CONTEXT.md
+
+# scripts locais: só o benchmark com caso inventado sobe
+scripts/*
+!scripts/benchmark_modelos.py
+!scripts/teste_concorrencia.py
+!scripts/reconstruir_tiques.py
+!scripts/curadoria_pos_execucao.py
+test_proxy.py
+test_model.py
+demo_manual.py
+
+# ambiente
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/

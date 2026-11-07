@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Contas a pagar · time de agentes</title>
+<style>
+:root{
+  --bg:#f6f7f9; --card:#fff; --ink:#16181d; --mute:#636a76; --line:#e3e6eb;
+  --ok:#1f9d55; --warn:#d99a00; --bad:#d64545; --hold:#6b7280; --out:#2563eb; --cancel:#9ca3af;
+  --accent:#2563eb; --soft:#eef3ff;
+}
+@media (prefers-color-scheme: dark){
+  :root{--bg:#0f1115; --card:#171a21; --ink:#e8eaee; --mute:#9aa3b2; --line:#2a2f3a; --soft:#1b2540; --hold:#8b93a1; --cancel:#566070}
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{position:sticky;top:0;z-index:5;background:var(--card);border-bottom:1px solid var(--line);padding:10px 20px;display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+header h1{font-size:17px;margin:0;font-weight:650;white-space:nowrap}
+header .run{color:var(--mute);font-size:12px}
+.ctrl{display:flex;gap:8px;align-items:center;flex:1;min-width:300px}
+.ctrl input[type=range]{flex:1;accent-color:var(--accent)}
+button,select{font:inherit;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:8px;padding:6px 10px;cursor:pointer}
+button.prim{background:var(--accent);color:#fff;border-color:var(--accent);min-width:44px}
+button:hover{filter:brightness(.97)}
+main{max-width:1280px;margin:0 auto;padding:18px 20px 60px}
+.clock{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin:4px 0 14px}
+.clock .h{font-size:30px;font-weight:700;letter-spacing:-.5px}
+.clock .l{color:var(--mute)}
+.pill{display:inline-block;padding:2px 10px;border-radius:99px;background:var(--soft);color:var(--accent);font-weight:600;font-size:13px}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+.kpi .v{font-size:28px;font-weight:700;letter-spacing:-.5px}
+.kpi .t{color:var(--mute);font-size:13px}
+.kpi .s{font-size:13px;margin-top:2px}
+.grid2{display:grid;grid-template-columns:1.25fr 1fr;gap:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
+.card h2{font-size:15px;margin:0 0 10px;font-weight:650}
+.card h2 small{color:var(--mute);font-weight:400}
+.dots{display:flex;flex-wrap:wrap;gap:4px}
+.dot{width:15px;height:15px;border-radius:4px;cursor:pointer;transition:background .3s}
+.dot.big{width:22px;height:22px}
+.P{background:var(--ok)} .D{background:var(--warn)} .Q{background:var(--bad)} .R{background:var(--hold)} .S{background:var(--out)}
+.C{background:var(--cancel)} .x{background:transparent;border:1px dashed var(--line)}
+.leg{display:flex;gap:14px;flex-wrap:wrap;color:var(--mute);font-size:13px;margin-top:10px}
+.leg i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+#tip{margin-top:10px;min-height:22px;font-size:13px;color:var(--mute)}
+.feed{max-height:430px;overflow:auto;margin:0;padding:0;list-style:none}
+.feed li{display:flex;gap:10px;padding:8px 2px;border-bottom:1px solid var(--line);font-size:14px}
+.feed li .ic{width:22px;text-align:center;flex:none}
+.feed li .w{color:var(--mute);font-size:12px;white-space:nowrap}
+.feed li.old{opacity:.55}
+.feed li.n2{font-size:13px;color:var(--mute)}
+.feed li a{color:var(--accent);cursor:pointer}
+.res{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.res .box{border-radius:10px;padding:12px 14px;background:var(--bg)}
+.res .box .v{font-size:22px;font-weight:700}
+.res .box.good .v{color:var(--ok)} .res .box.bad .v{color:var(--bad)}
+.note{color:var(--mute);font-size:12px;margin-top:8px}
+nav.tabs{display:flex;gap:6px;margin:22px 0 10px;border-bottom:1px solid var(--line)}
+nav.tabs button{border:none;border-bottom:2px solid transparent;border-radius:0;background:none;padding:8px 12px;color:var(--mute)}
+nav.tabs button.on{border-color:var(--accent);color:var(--ink);font-weight:600}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--mute);font-weight:600;font-size:12.5px}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+.casos{display:grid;grid-template-columns:360px 1fr;gap:16px}
+.lista{max-height:560px;overflow:auto}
+.lista div{padding:9px 10px;border-radius:8px;cursor:pointer;border:1px solid transparent}
+.lista div:hover{background:var(--bg)} .lista div.on{border-color:var(--accent);background:var(--soft)}
+.lista .m{color:var(--mute);font-size:12.5px}
+.passo{display:flex;gap:10px;margin:10px 0}
+.passo .ic{width:22px;text-align:center;flex:none}
+.bars{display:flex;align-items:flex-end;gap:3px;height:150px;border-bottom:1px solid var(--line)}
+.bars div{flex:1;background:var(--accent);border-radius:3px 3px 0 0;min-height:1px;position:relative}
+.bars div.cur{background:var(--warn)}
+.muted{color:var(--mute)}
+@media (max-width:900px){.kpis{grid-template-columns:1fr 1fr}.grid2,.casos,.res{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header>
+  <h1>🧾 Contas a pagar · time de agentes</h1>
+  <div class="ctrl">
+    <button class="prim" id="play" title="play / pausa (espaço)">▶</button>
+    <button id="ant" title="tique anterior (←)">⏮</button>
+    <input type="range" id="slider" min="0" max="0" value="0">
+    <button id="prox" title="próximo tique (→)">⏭</button>
+    <select id="vel" title="velocidade"><option value="1500">lento</option><option value="800" selected>normal</option><option value="300">rápido</option></select>
+    <button id="lote" title="pula até o próximo lote fechar">⏩ próximo lote</button>
+    <select id="ircaso"><option value="">🎯 ir para o caso…</option></select>
+  </div>
+  <span class="run" id="run"></span>
+</header>
+<main>
+  <div class="clock"><span class="h" id="hora"></span><span class="l" id="tique"></span><span class="pill" id="lotepill"></span></div>
+
+  <section class="kpis">
+    <div class="kpi"><div class="t">Vai sair no próximo lote</div><div class="v" id="k1"></div><div class="s muted" id="k1s"></div></div>
+    <div class="kpi"><div class="t">Provado só pelo código (sem LLM, sem pessoa)</div><div class="v" id="k2"></div><div class="s muted" id="k2s"></div></div>
+    <div class="kpi"><div class="t">Segurado pelo time (fora do lote)</div><div class="v" id="k3"></div><div class="s muted" id="k3s"></div></div>
+    <div class="kpi"><div class="t">Decisões levadas a pessoas</div><div class="v" id="k4"></div><div class="s muted" id="k4s"></div></div>
+  </section>
+
+  <section class="grid2">
+    <div class="card">
+      <h2>O lote, título a título <small id="lotetit"></small></h2>
+      <div class="dots" id="dots"></div>
+      <div class="leg">
+        <span><i class="P"></i>provado</span><span><i class="D"></i>duvidoso</span><span><i class="Q"></i>elo quebrado</span>
+        <span><i class="R"></i>segurado pelo time</span><span><i class="C"></i>cancelado</span><span><i class="S"></i>pago</span>
+      </div>
+      <div id="tip">Passe o mouse num quadrado para ver o título.</div>
+    </div>
+    <div class="card">
+      <h2>O que o time está fazendo <small id="feedsub"></small></h2>
+      <ul class="feed" id="feed"></ul>
+    </div>
+  </section>
+
+  <section class="card" style="margin-top:16px" id="resultado"></section>
+
+  <nav class="tabs">
+    <button data-t="casos" class="on">🗂 Casos</button>
+    <button data-t="apr">🧠 Aprendizado</button>
+    <button data-t="tempo">⏱ Tempo</button>
+  </nav>
+  <section id="t-casos" class="casos">
+    <div class="card lista" id="lista"></div>
+    <div class="card" id="caso"></div>
+  </section>
+  <section id="t-apr" class="card" hidden></section>
+  <section id="t-tempo" class="card" hidden></section>
+</main>
+<script>
+const D = /*__DADOS__*/null;
+const $ = id => document.getElementById(id);
+const brl = v => "R$ " + Number(v || 0).toLocaleString("pt-BR", {minimumFractionDigits: 2, maximumFractionDigits: 2});
+const brl0 = v => "R$ " + Number(v || 0).toLocaleString("pt-BR", {maximumFractionDigits: 0});
+const DIAS = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];
+const hora = s => { const d = new Date(s.replace(" ", "T")); return `${DIAS[d.getDay()]} ${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")} ${String(d.getHours()).padStart(2,"0")}:00`; };
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const NOME = {P:"provado", D:"duvidoso", Q:"elo quebrado", R:"segurado pelo time", C:"cancelado", S:"pago", "-":"fora deste tique"};
+
+let i = 0, timer = null, casoSel = null;
+const T = D.tiques;
+$("slider").max = T.length - 1;
+$("run").textContent = `execução ${D.run}${D.reconstruida ? " (reconstruída)" : ""} · gerado ${D.gerado_em}`;
+
+// ------------------------------------------------------------ resultado (placar)
+function resultado(){
+  const R = D.resumo, el = $("resultado");
+  if (!R){ el.innerHTML = `<h2>Resultado</h2><p class="muted">O placar aparece quando a execução termina (resumo.json).</p>`; return; }
+  const L = (R.lotes_fechados || [])[0];
+  let h = `<h2>Resultado ${L ? "do lote " + esc(L.lote_remessa) : ""} <small>estimado pelo agente, verificável pela trilha</small></h2>`;
+  if (L){
+    const p = L.placar, bug = p.com_agente.custo_atraso_bug, dec = p.com_agente.custo_atraso_decisao_esperado;
+    h += `<div class="res">
+      <div class="box bad"><div class="muted">Sem o time (o lote sai como está)</div><div class="v">${brl(p.sem_agente.total)}</div>
+        <div class="note">${brl(p.sem_agente.pago_em_dobro)} pagos em dobro + ${brl(p.sem_agente.pago_indevido_esperado)} de pagamento indevido esperado</div></div>
+      <div class="box"><div class="muted">Custo do time (atrasos)</div><div class="v">${brl(bug + dec)}</div>
+        <div class="note">${brl(dec)} por decisão (esperado) ${bug ? `+ <b>${brl(bug)} por um bug do código, já corrigido</b>` : "· nenhum atraso por bug"}</div></div>
+      <div class="box good"><div class="muted">Ganho líquido</div><div class="v">${brl(p.ganho_liquido_estimado)}</div>
+        <div class="note">${L.saiu.qtd} títulos saíram (${brl0(L.saiu.valor)}); ${L.retidos.qtd} ficaram de fora</div></div></div>`;
+  }
+  const F = R.lotes_futuros;
+  h += `<p style="margin:12px 0 0">Além disso, para os <b>próximos lotes</b>, o time já segurou ${F.titulos_fora_do_lote} títulos
+        (${brl0(F.valor_fora_do_lote)}): <b>${brl0(F.protegido_esperado)} protegidos</b> pela probabilidade estimada pelo agente.
+        · ${R.pessoas.pct_titulos_dos_lotes_fechados_sem_pessoa}% dos títulos sem envolver pessoa
+        · ${R.casos.total} casos investigados, ${R.critico.refutacoes} refutação(ões) do Crítico.</p>`;
+  el.innerHTML = h;
+}
+
+// ------------------------------------------------------------ tique atual
+function render(){
+  const t = T[i];
+  $("slider").value = i;
+  $("hora").textContent = hora(t.hora);
+  $("tique").textContent = `hora ${t.n} de ${T[T.length-1].n} da simulação`;
+  $("lotepill").textContent = t.fecha ? `${t.lote} · ${t.banco || ""} · fecha em ${t.faltam} h` : "sem lote aberto";
+  $("k1").textContent = brl0(t.valor_lote);
+  $("k1s").textContent = `${t.no_lote} títulos no lote ${t.lote}`;
+  $("k2").textContent = (t.provado ?? 0) + "%";
+  $("k2s").textContent = "dos títulos do lote";
+  $("k3").textContent = brl0(t.valor_fora);
+  $("k3s").textContent = `${t.fora} título(s) · ${t.casos} casos investigados até agora`;
+  $("k4").textContent = t.decisoes_pessoas;
+  $("k4s").textContent = `${t.cards} card(s) · cada acionamento desnecessário custa R$ 60`;
+  // grade
+  const ids = D.lotes[t.lote] || [];
+  $("lotetit").textContent = `· ${ids.length} títulos, do maior para o menor valor`;
+  const big = ids.length < 80;
+  $("dots").innerHTML = ids.map((ti, k) => `<span class="dot ${big ? "big " : ""}${t.cods[k] === "-" ? "x" : t.cods[k]}" data-k="${k}"></span>`).join("");
+  // feed: tique atual em destaque + anteriores apagados
+  const ev = D.feed.filter(e => e.n <= t.n).slice(-60).reverse();
+  const agora = ev.filter(e => e.n === t.n).length;
+  $("feedsub").textContent = agora ? `· ${agora} acontecimento(s) nesta hora` : "· nada novo nesta hora";
+  $("feed").innerHTML = ev.map(e => `<li class="${e.n < t.n ? "old" : ""} n${e.nv}"><span class="ic">${e.ic}</span>
+     <span>${esc(e.txt)} ${e.caso ? `<a data-c="${e.caso}">ver caso</a>` : ""}<br><span class="w">${hora(T.find(x => x.n === e.n)?.hora || t.hora)}</span></span></li>`).join("")
+     || `<li class="muted">Tudo provado pelo código até aqui. Nenhum LLM chamado.</li>`;
+  listaCasos();
+}
+$("dots").addEventListener("mouseover", ev => {
+  const k = ev.target.dataset.k; if (k === undefined) return;
+  const t = T[i], ti = D.lotes[t.lote][k], [id, forn, v, q] = D.titulos[ti], c = t.cods[k];
+  $("tip").innerHTML = `<b>${esc(id)}</b> · ${esc(forn)} · ${brl(v)} · <b>${NOME[c]}</b>${q ? " · elo(s) quebrado(s): " + esc(q) : ""}`;
+});
+$("feed").addEventListener("click", ev => { const c = ev.target.dataset.c; if (c){ abrirCaso(c); $("t-casos").scrollIntoView({behavior:"smooth"}); }});
+
+// ------------------------------------------------------------ casos
+function listaCasos(){
+  const n = T[i].n, cs = D.casos.filter(c => c.n0 <= n);
+  $("lista").innerHTML = `<h2>Casos até agora <small>(${cs.length})</small></h2>` + cs.map(c => `<div data-c="${c.id}" class="${c.id === casoSel ? "on" : ""}">
+     <b>${c.id}</b> · ${esc(c.forn)}<br><span class="m">${brl0(c.valor)} · ${esc(c.desfecho)}</span></div>`).join("");
+  if (casoSel) abrirCaso(casoSel, true);
+}
+$("lista").addEventListener("click", ev => { const d = ev.target.closest("[data-c]"); if (d) abrirCaso(d.dataset.c); });
+function abrirCaso(id, silencioso){
+  casoSel = id;
+  const c = D.casos.find(x => x.id === id); if (!c) return;
+  const n = T[i].n, passos = c.passos.filter(p => p.n <= n);
+  $("caso").innerHTML = `<h2>${c.id} · ${esc(c.forn)}</h2>
+    <p class="muted" style="margin-top:-4px">${brl(c.valor)} em jogo · lote ${esc(c.lote || "-")} · motivo: ${esc(c.origem)}
+     ${c.p != null ? ` · probabilidade de problema estimada: <b>${Math.round(c.p * 100)}%</b>` : ""}</p>
+    ${passos.map(p => `<div class="passo"><span class="ic">${p.ic}</span><div>${esc(p.txt)}<div class="muted" style="font-size:12px">${hora(T.find(x => x.n === p.n)?.hora || "")}</div></div></div>`).join("")
+      || `<p class="muted">O caso começa em ${hora(T.find(x => x.n === c.n0)?.hora || "")}.</p>`}
+    ${n >= T[T.length-1].n ? `<p style="margin-top:14px"><b>Desfecho:</b> ${esc(c.desfecho)}${c.acoes.length ? " · ações: " + esc(c.acoes.join(", ")) : ""}</p>` : ""}
+    <p class="note">Títulos: ${esc(c.titulos.join(", "))}</p>`;
+  if (!silencioso) listaCasos();
+}
+
+// ------------------------------------------------------------ aprendizado e tempo
+function aprendizado(){
+  const C = D.curadoria, ds = D.detectores;
+  let h = `<h2>O time aprende <small>detectores criados pelos agentes a partir dos casos</small></h2>`;
+  if (C) h += `<p><b>${C.detectores_antes} detectores criados → ${C.ativos_depois} ativos</b> depois do Curador
+     (${C.consolidados.length} consolidados por serem o mesmo padrão, ${C.rebaixados.length} rebaixado(s) por muito alarme falso).
+     ${C.licoes} lições e ${C.propostas} propostas de correção de processo.</p>`;
+  h += `<table><tr><th>Detector</th><th>Nasceu em</th><th class="num">Alertas</th><th class="num">Confirmados</th><th class="num">Falsos</th><th>Situação</th></tr>` +
+    ds.map(d => `<tr><td>${esc(d.nome)}</td><td>${esc(d.caso_origem || "")} · ${esc((d.criado_no_tique || "").slice(5,16))}</td>
+      <td class="num">${d.n_alertas ?? 0}</td><td class="num">${d.n_confirmados ?? 0}</td><td class="num">${d.n_falsos ?? 0}</td>
+      <td>${d.ativo ? "ativo" : esc(d.motivo_status || "inativo")}</td></tr>`).join("") + `</table>`;
+  $("t-apr").innerHTML = h;
+}
+function tempo(){
+  const seg = T.map(t => t.seg || 0), max = Math.max(...seg, 1), tot = seg.reduce((a, b) => a + b, 0);
+  const R = D.resumo && D.resumo.tempos;
+  $("t-tempo").innerHTML = `<h2>Tempo: 1 hora simulada × tempo real <small>cada barra é uma hora da simulação</small></h2>
+    <div class="kpis" style="grid-template-columns:repeat(3,1fr)">
+      <div class="kpi"><div class="t">Hora mais pesada</div><div class="v">${Math.round(max / 60)} min</div><div class="s muted">${(100 * max / 3600).toFixed(0)}% de uma hora real: sobra folga</div></div>
+      <div class="kpi"><div class="t">Tempo real total</div><div class="v">${Math.round(tot / 60)} min</div><div class="s muted">para ${T.length} horas simuladas</div></div>
+      <div class="kpi"><div class="t">Horas sem LLM</div><div class="v">${T.filter(t => !t.llm_tique).length}</div><div class="s muted">tudo resolvido pelo código</div></div>
+    </div>
+    <div class="bars">${T.map((t, k) => `<div class="${k === i ? "cur" : ""}" style="height:${100 * (t.seg || 0) / max}%" title="${hora(t.hora)}: ${Math.round(t.seg || 0)} s, ${t.llm_tique} chamadas de LLM"></div>`).join("")}</div>
+    ${R ? `<p class="note">Chamadas de LLM: ${R.llm_chamadas}. Por papel: ${Object.entries(R.por_papel).sort((a,b) => b[1].segundos - a[1].segundos).map(([k, v]) => `${k} ${v.chamadas}× (${Math.round(v.segundos)} s)`).join(" · ")}.
+      Projeção com ${esc(R.projecao_premissa)}: ${Math.round(R.projecao_paralela_s / 60)} min.</p>` : ""}`;
+}
+
+// ------------------------------------------------------------ controles
+const ir = k => { i = Math.max(0, Math.min(T.length - 1, k)); render(); if (!$("t-tempo").hidden) tempo(); };
+$("slider").oninput = e => ir(+e.target.value);
+$("ant").onclick = () => ir(i - 1);
+$("prox").onclick = () => ir(i + 1);
+function tocar(){ if (timer){ clearInterval(timer); timer = null; $("play").textContent = "▶"; return; }
+  if (i >= T.length - 1) ir(0);
+  $("play").textContent = "⏸";
+  timer = setInterval(() => { if (i >= T.length - 1) return tocar(); ir(i + 1); }, +$("vel").value); }
+$("play").onclick = tocar;
+$("vel").onchange = () => { if (timer){ tocar(); tocar(); } };
+$("lote").onclick = () => { const L = T[i].lote; const k = T.findIndex((t, k) => k > i && t.lote !== L); ir(k < 0 ? T.length - 1 : k); };
+D.casos.forEach(c => $("ircaso").insertAdjacentHTML("beforeend", `<option value="${c.id}">${c.id} · ${esc(c.forn)} · ${brl0(c.valor)}</option>`));
+$("ircaso").onchange = e => { const c = D.casos.find(x => x.id === e.target.value); if (!c) return;
+  ir(T.findIndex(t => t.n >= c.n0)); abrirCaso(c.id); $("t-casos").scrollIntoView({behavior:"smooth"}); };
+document.querySelectorAll("nav.tabs button").forEach(b => b.onclick = () => {
+  document.querySelectorAll("nav.tabs button").forEach(x => x.classList.toggle("on", x === b));
+  ["casos", "apr", "tempo"].forEach(t => $("t-" + t).hidden = t !== b.dataset.t);
+  if (b.dataset.t === "apr") aprendizado(); if (b.dataset.t === "tempo") tempo(); });
+document.addEventListener("keydown", e => { if (e.target.tagName === "SELECT") return;
+  if (e.key === " "){ e.preventDefault(); tocar(); } if (e.key === "ArrowRight") ir(i + 1); if (e.key === "ArrowLeft") ir(i - 1); });
+resultado(); render();
+</script>
+</body>
+</html>
